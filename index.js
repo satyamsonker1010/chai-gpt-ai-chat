@@ -5,6 +5,8 @@ const generteBtn = document.getElementById("generate_btn");
 const cancelBtn = document.getElementById("stopBtn");
 const resultText = document.getElementById("resultText");
 
+let controller = null;
+
 const generateFun = async () => {
   // If input field iss empty then press enter
   if (!promptInput.value) {
@@ -13,6 +15,10 @@ const generateFun = async () => {
   }
   generteBtn.disabled = true;
   resultText.innerText = "generating...";
+  cancelBtn.disabled = false;
+  controller = new AbortController();
+  const signal = controller.signal;
+
   const question = promptInput.value;
   promptInput.value = "";
   try {
@@ -41,6 +47,7 @@ const generateFun = async () => {
         messages: [{ role: "user", content: question }],
         stream: true,
       }),
+      signal,
     });
     const reader = response.body.getReader();
     const decorder = new TextDecoder("utf-8");
@@ -68,10 +75,23 @@ const generateFun = async () => {
       }
     }
   } catch (error) {
-    resultText.innerText = "Error occurred while generating.";
-    console.log(error);
+    if (signal.aborted) {
+      resultText.innerText = "Request aborted";
+    } else {
+      resultText.innerText = "Error occurred while generating.";
+      console.log(error);
+    }
   } finally {
     generteBtn.disabled = false;
+    cancelBtn.disabled = true;
+    controller = null;
+  }
+};
+
+const stopFun = () => {
+  if (controller) {
+    controller.abort();
+    controller = null;
   }
 };
 
@@ -81,3 +101,5 @@ promptInput.addEventListener("keyup", (event) => {
     generateFun();
   }
 });
+
+cancelBtn.addEventListener("click", stopFun);
